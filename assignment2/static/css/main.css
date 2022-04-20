@@ -1,0 +1,24 @@
+.screen_container {
+    position: relative;
+    width: 800px;
+    display: inline;
+    float: left;
+    margin: 80px;
+    background: #000;
+    overflow: hidden;
+    border-style: solid;
+    border-radius: 25px;
+    border-color: deeppink;
+}
+
+.table_div {
+    display: inline;
+    float: right;
+    margin: 100px;
+}
+
+.main {
+    width: 600px;
+    margin: 20px auto;
+    text-align: center;
+}
