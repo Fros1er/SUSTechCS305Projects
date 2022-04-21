@@ -29,7 +29,7 @@ def wsPlayer(type, video):
     return render_template("danmu.html", videoName=video + ".mp4", mode="ws")
 
 
-@app.route("/danmaku/<video>")
+@app.route("/video/<video>")
 def loadDanmaku(video):
     return {
         "uuid": danmakuHandler.register(video),
