@@ -4,6 +4,8 @@ import { DanmakuEngine } from './DanmakuEngine.js'
 const danmakuInput = $("#danmakutext")[0]
 const videoPlayer = $("video")
 const danmakuContainer = $(".screen_container")
+
+// get infomations from url
 const paths = window.location.pathname.split('/')
 const videoName = paths.pop()
 const playType = paths.pop()
@@ -11,23 +13,27 @@ const protocolType = paths.pop()
 
 const engine = new DanmakuEngine(videoPlayer[0], danmakuContainer)
 
+// live mode: remove controls from videoPlayer, and play it directly.
+if (playType == "live") {
+    videoPlayer.removeAttr('controls')
+    videoPlayer[0].play()
+}
+
 videoPlayer.on("seeked", () => {
     if (playType == "video") {
         engine.redirect(videoPlayer[0].currentTime)
     }
 })
 
-// generate new danmakus
-videoPlayer.on("play", (e) => {
+videoPlayer.on("play", () => {
     if (playType == "video") {
         engine.start()
     } else {
-        engine.dry()
+        engine.dry() // as controls is hidden, play event will only be triggered once 
     }
 })
 
-//pause danmakus
-videoPlayer.on("pause", (e) => {
+videoPlayer.on("pause", () => {
     if (playType == "video") {
         engine.pause()
     }
@@ -43,30 +49,41 @@ function addDanmakuTableRowAfter(content, time, index) {
 }
 
 function parseNewDanmakus(data) {
+    /*
+    data = {
+        "newDanmaku": [[content, time(if video)], ...] in video mode,
+        "newDanmaku": [content, ...] in Live mode
+    }
+    */
     if (playType == "video") {
         for (let danmaku of data["newDanmaku"]) {
+            // insert new danmaku to list in order
             let res = upperBound(engine.danmakuList, danmaku[1])
             engine.danmakuList.splice(res, 0, danmaku)
             addDanmakuTableRowAfter(danmaku[0], danmaku[1], res)
         }
-    } else {
-        engine.danmakuList.push([data["newDanmaku"]])
-        addDanmakuTableRow(data["newDanmaku"], 0)
+    } else { // livestream mode
+        engine.danmakuList.concat(data["newDanmaku"])
+        for (let danmaku of data["newDanmaku"]) {
+            addDanmakuTableRow(danmaku, 0) // live mode's time in table is all set to 0
+        }
     }
 }
 
 if (protocolType == "http") {
     let uuid = undefined
+    // get sorted history danmaku and uuid
     fetch("/" + playType + "/" + videoName).then(res => res.json()).then(data => {
         if (playType == "video") {
-            engine.danmakuList = data["danmaku"]
-            for (let danmaku of data["danmaku"]) {
+            engine.danmakuList = data["danmaku"] // override existed danmaku list
+            for (let danmaku of data["danmaku"]) { // add to table
                 addDanmakuTableRow(danmaku[0], danmaku[1])
             }
         }
         uuid = data["uuid"]
     })
 
+    // start polling.
     let poll = setInterval(function () {
         if (uuid != undefined) {
             fetch("/poll/" + videoName + "/" + uuid).then(res => res.json()).then(data => {
@@ -92,14 +109,15 @@ if (protocolType == "http") {
             body: JSON.stringify(body)
         })
     })
-} else {
+} else { // websocket
     var socket = io("127.0.0.1:8765")
     if (playType == "video") {
         socket.emit("getHistory", { "video": videoName })
-    } else {
-        socket.emit("register", { "video": videoName })
+    } else { // livestream
+        socket.emit("register", { "live": videoName })
     }
 
+    // load history event. If in live mode, the event will never be emitted.
     socket.on('loadDanmaku', function (data) {
         engine.danmakuList = data["danmaku"]
         for (let danmaku of data["danmaku"]) {
