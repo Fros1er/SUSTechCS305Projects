@@ -1,53 +1,64 @@
-import sqlite3, time, pprint
-import threading
+import sqlite3, threading, uuid
 from typing import Dict, List, Tuple
 
 class DamakuSQLLoader:
     conn = sqlite3.connect('test.db', check_same_thread=False)
-    insertSQL = "insert into test VALUES(?, ?);"
+    insertSQL = "insert into %s VALUES(?, ?);"
     mutex = threading.Lock()
-    name : str
-    
-    def __init__(self, name : str) -> None:
-        self.name = name
-        self.mutex.acquire()
-        with self.conn:
-            self.conn.execute('''CREATE TABLE IF NOT EXISTS %s (
-                content text,
-                time integer);
-                ''' % name)
-        self.mutex.release()
 
-    def load(self) -> List[Tuple[str, int]]:
+    def addVideo(self, videoName : str):
+        with self.mutex:
+            with self.conn:
+                self.conn.execute('''CREATE TABLE IF NOT EXISTS %s (
+                    content text,
+                    time integer);
+                    ''' % videoName)
+
+    def load(self, videoName : str) -> List[Tuple[str, int]]:
         with self.mutex:
             with self.conn:
                 cursor = self.conn.cursor()
-                cursor.execute("select content, time from test order by time;")
-                res = cursor.fetchall()
-                return res
+                cursor.execute("select content, time from %s order by time;" % videoName)
+                return cursor.fetchall()
 
-    def save(self, content: str, time_recv : int) -> None:
+    def save(self, videoName : str, content: str, time_recv : int) -> None:
         with self.mutex:
             with self.conn:
                 cursor = self.conn.cursor()
-                cursor.execute(self.insertSQL, [content, time_recv])
+                cursor.execute(self.insertSQL % videoName, [content, time_recv])
 
 class NahelArgama:
-    loader = DamakuSQLLoader("test")
-    recv_queues : Dict[str, List[Tuple[str, int]]] = {}
+    loader = DamakuSQLLoader()
+    recv_queues : Dict[str, Dict[str, List]] = {}
 
-    def getHistory(self) -> List[Tuple[str, int]]:
-        return self.loader.load()
+    def getHistory(self, name : str) -> List:
+        return self.loader.load(name)
 
-    def register(self, id : str) -> None:
-        self.recv_queues[id] = []
+    def register(self, videoName : str, isVideo : bool = True) -> str:
+        if isVideo:
+            self.loader.addVideo(videoName)
+        if videoName not in self.recv_queues:
+            self.recv_queues[videoName] = {}
+        key = uuid.uuid4()
+        while key in self.recv_queues[videoName]:
+            key = uuid.uuid4()
+        self.recv_queues[videoName][str(key)] = []
+        return str(key)
 
-    def send(self, content : str, time_recv) -> None:
-        self.loader.save(content, time_recv)
+    def sendVideo(self, videoName : str, content : str, time_recv) -> None:
+        self.loader.save(videoName, content, time_recv)
+        if videoName not in self.recv_queues:
+            return
+        for key in self.recv_queues[videoName]:
+            self.recv_queues[videoName][key].append((content, time_recv))
+
+    def sendLive(self, liveName : str, content : str) -> None:
+        if liveName not in self.recv_queues:
+            return
         for key in self.recv_queues:
-            self.recv_queues[key].append((content, time_recv))
+            self.recv_queues[liveName][key].append(content)
 
-    def getUnreceived(self, key : str) -> List[Tuple[str, int]]:
-        res = self.recv_queues[key]
-        self.recv_queues[key] = []
+    def getUnreceived(self, videoName : str, key : str) -> List:
+        res = self.recv_queues[videoName][key]
+        self.recv_queues[videoName][key] = []
         return res

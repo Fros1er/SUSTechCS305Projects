@@ -17,18 +17,41 @@ export class DanmakuEngine {
         this.containerDom = containerDom
     }
 
-    redirect(time) {
+    clear() {
         for (let e of this.currentDanmakuDomList) {
             e.remove()
         }
         for (let e of this.timers) {
             clearInterval(e)
         }
+    }
+
+    redirect(time) {
+        this.clear()
         this.currentDanmakuDomList = []
         this.cursor = lowerBound(this.danmakuList, time)
     }
 
+    dry() {
+        this.paused = false;
+        if (!this.queryInterval)
+            clearInterval(this.queryInterval)
+        this.queryInterval = null
+        this.clear()
+        this.queryInterval = setInterval
+        this.queryInterval = setInterval(() => {
+            for (let v of this.danmakuList) {
+                let danmaku = this.createDanmaku(v[0])
+                this.currentDanmakuDomList.push(danmaku)
+                this.addInterval(danmaku)
+            }
+            this.danmakuList = []
+        }, 10)
+    }
+
     start() {
+        if (!this.queryInterval)
+            clearInterval(this.queryInterval)
         this.paused = false
         this.queryInterval = setInterval(() => {
             while (this.cursor < this.danmakuList.length && this.danmakuList[this.cursor][1] <= this.videoDom.currentTime) {

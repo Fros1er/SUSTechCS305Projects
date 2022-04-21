@@ -15,7 +15,7 @@
 
   <div class="screen_container" id="contents">
     <video controls>
-      <source src={{ url_for('static', videoName + ".mp4"" ) }} type="video/mp4">
+      <source src={{ url_for('static', filename=videoName ) }} type="video/mp4">
       Your browser does not support the video tag.
     </video>
   </div>
@@ -40,7 +40,7 @@
     <p>Now: {{ mode }} mode</p>
   </div>
 
-  <script src={{ url_for('static', filename="js/" + mode + ".js" ) }} type="module"></script>
+  <script src={{ url_for('static', filename="js/main.js" ) }} type="module"></script>
 </body>
 
 </html>

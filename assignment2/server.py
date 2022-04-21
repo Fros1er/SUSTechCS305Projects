@@ -1,8 +1,6 @@
-from distutils.log import debug
 import flask
-import uuid
 from flask import Flask, redirect, render_template
-from flask_socketio import SocketIO, emit, send
+from flask_socketio import SocketIO, emit, join_room
 from NahelArgama import NahelArgama
 
 app = Flask("Danmaku")
@@ -18,55 +16,67 @@ danmakuHandler = NahelArgama()
 
 @app.route("/")
 def mainPage():
-    return redirect("/http/rickroll")
+    return redirect("/http/video/rickroll")
 
 
-@app.route("/http/<video>")
-def httpPlayer(video):
-    return render_template("danmu.html", videoName=video, mode="http")
+@app.route("/http/<type>/<video>")
+def httpPlayer(type, video):
+    return render_template("danmu.html", videoName=video + ".mp4", mode="http")
 
 
-@app.route("/ws/<video>")
-def wsPlayer(video):
-    return render_template("danmu.html", videoName=video, mode="ws")
+@app.route("/ws/<type>/<video>")
+def wsPlayer(type, video):
+    return render_template("danmu.html", videoName=video + ".mp4", mode="ws")
 
 
-@app.route("/danmaku")
-def loadDanmaku():
-    key = uuid.uuid4()
-    while key in danmakuHandler.recv_queues:
-        key = uuid.uuid4()
-    danmakuHandler.register(str(key))
+@app.route("/danmaku/<video>")
+def loadDanmaku(video):
     return {
-        "type": "load",
-        "danmaku": danmakuHandler.getHistory(),
-        "uuid": key
+        "uuid": danmakuHandler.register(video),
+        "danmaku": danmakuHandler.getHistory(video)
     }
 
 
-@app.route("/poll/<key>")
-def pollDanmaku(key):
-    return {"type": "new", "newDanmaku": danmakuHandler.getUnreceived(key)}
+@app.route("/live/<live>")
+def registerLive(live):
+    return {
+        "uuid": danmakuHandler.register(live, False)
+    }
 
 
-@app.route("/send", methods=['POST'])
-def sendDanmaku():
-    body = flask.request.get_json()
-    danmakuHandler.send(body["content"], body["time"])
+@app.route("/poll/<video>/<key>")
+def pollDanmaku(video, key):
+    return {"type": "new", "newDanmaku": danmakuHandler.getUnreceived(video, key)}
+
+
+@app.route("/send/<name>", methods=['POST'])
+def sendDanmaku(name):
+    data = flask.request.get_json()
+    if data["type"] == "video":
+        danmakuHandler.sendVideo(name, data["content"], data["time"])
+    else:
+        danmakuHandler.sendLive(name, data["content"])
     return ""
 
 
-@soc.on('connect')
-def wsLoadDanmaku(auth):
-    emit("loadDanmaku", {"type": "load",
-                         "danmaku": danmakuHandler.getHistory()
-                         })
+@soc.on('getHistory')
+def wsLoadDanmaku(data):
+    join_room(data["video"])
+    emit("loadDanmaku", {"danmaku": danmakuHandler.getHistory(data["video"])})
+
+@soc.on('register')
+def wsRegister(data):
+    join_room(data["video"])
 
 @soc.on('sendDanmaku')
-def wsSendDanmaku(body):
-    danmakuHandler.send(body["content"], body["time"])
-    emit("newDanmaku", {"type": "new", "newDanmaku": [
-         (body["content"], body["time"])]}, broadcast=True)
+def wsSendDanmaku(data):
+    if data["type"] == "video":
+        danmakuHandler.sendVideo(data["video"], data["content"], data["time"])
+        emit("newDanmaku", {"newDanmaku": [
+            (data["content"], data["time"])]}, to=data["video"])
+    else:
+        danmakuHandler.sendLive(data["video"], data["content"])
+        emit("newDanmaku", {"newDanmaku": data["content"]}, to=data["video"])
 
 
 if __name__ == "__main__":
