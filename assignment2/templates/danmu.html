@@ -14,7 +14,7 @@
 <body>
 
   <div class="screen_container" id="contents">
-    <video controls>
+    <video {% if type=="video" %} controls {% else %} autoplay muted {% endif %}>
       <source src={{ url_for('static', filename=videoName ) }} type="video/mp4">
       Your browser does not support the video tag.
     </video>

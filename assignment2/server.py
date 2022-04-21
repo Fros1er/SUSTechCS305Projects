@@ -1,7 +1,7 @@
 import flask
 import logging
 from flask import Flask, redirect, render_template
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, join_room, emit
 from NahelArgama import NahelArgama
 
 # init flask app
@@ -10,10 +10,10 @@ app.config['SECRET_KEY'] = 'secret!'
 soc = SocketIO(app, cors_allowed_origins='*')
 
 # disable logs, as every poll create one line of log
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
-app.logger.disabled = True
-log.disabled = True
+# log = logging.getLogger('werkzeug')
+# log.setLevel(logging.ERROR)
+# app.logger.disabled = True
+# log.disabled = True
 
 # init danmaku manager
 danmakuHandler = NahelArgama()
@@ -33,7 +33,7 @@ def httpPlayer(type, video):
     http version of video or live resources.
     streaming is simulated by video autoplayed and without controls.
     '''
-    return render_template("danmu.html", videoName=video + ".mp4", mode="http")
+    return render_template("danmu.html", videoName=video + ".mp4", mode="http", playType=type)
 
 
 @app.route("/ws/<type>/<video>")
@@ -42,7 +42,7 @@ def wsPlayer(type, video):
     websocket version of video or live resources.
     streaming is simulated by video autoplayed and without controls.
     '''
-    return render_template("danmu.html", videoName=video + ".mp4", mode="ws")
+    return render_template("danmu.html", videoName=video + ".mp4", mode="ws", playType=type)
 
 
 @app.route("/video/<video>")
@@ -87,11 +87,11 @@ def sendDanmaku(name):
     data = flask.request.get_json()
     if data["type"] == "video":
         danmakuHandler.sendVideoDanmaku(name, data["content"], data["time"])
-        emit("newDanmaku", {"newDanmaku": [
+        soc.emit("newDanmaku", {"newDanmaku": [
              (data["content"], data["time"])]}, to=name)
     else:
         danmakuHandler.sendLiveDanmaku(name, data["content"])
-        emit("newDanmaku", {"newDanmaku": [data["content"]]}, to=name)
+        soc.emit("newDanmaku", {"newDanmaku": [data["content"]]}, to=name)
     return ""
 
 
@@ -103,8 +103,8 @@ def wsLoadDanmaku(data):
     all ws client in corresponding room is boardcasted.
     '''
     danmakuHandler.registerVideo(data["video"])
-    join_room(data["video"])
     emit("loadDanmaku", {"danmaku": danmakuHandler.getHistory(data["video"])})
+    join_room(data["video"])
 
 
 @soc.on('register')
@@ -127,12 +127,12 @@ def wsSendDanmaku(data):
     if data["type"] == "video":
         danmakuHandler.sendVideoDanmaku(
             data["video"], data["content"], data["time"])
-        emit("newDanmaku", {"newDanmaku": [
+        soc.emit("newDanmaku", {"newDanmaku": [
             (data["content"], data["time"])]}, to=data["video"])
     else:
         danmakuHandler.sendLiveDanmaku(data["video"], data["content"])
-        emit("newDanmaku", {"newDanmaku": [data["content"]]}, to=data["video"])
+        soc.emit("newDanmaku", {"newDanmaku": [data["content"]]}, to=data["video"])
 
 
 if __name__ == "__main__":
-    soc.run(app, "127.0.0.1", 8765)
+    soc.run(app, "0.0.0.0", 8765)

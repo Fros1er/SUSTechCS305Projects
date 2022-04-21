@@ -4,5 +4,5 @@ This is a repo for SUSTech course CS305 Computer Networks' projects and assignme
 
 ## Current projects and assignments
 
-1. [LocalDNSServer](assignments1/report.md)
-2. [DanmakuSystem](assignments2/report.md)
+1. [LocalDNSServer](assignment1/report.md)
+2. [DanmakuSystem](assignment2/report.md)

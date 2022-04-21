@@ -16,7 +16,6 @@ const engine = new DanmakuEngine(videoPlayer[0], danmakuContainer)
 // live mode: remove controls from videoPlayer, and play it directly.
 if (playType == "live") {
     videoPlayer.removeAttr('controls')
-    videoPlayer[0].play()
 }
 
 videoPlayer.on("seeked", () => {
@@ -63,7 +62,9 @@ function parseNewDanmakus(data) {
             addDanmakuTableRowAfter(danmaku[0], danmaku[1], res)
         }
     } else { // livestream mode
-        engine.danmakuList.concat(data["newDanmaku"])
+        for (let s of data["newDanmaku"]) {
+            engine.danmakuList.push([s])
+        }
         for (let danmaku of data["newDanmaku"]) {
             addDanmakuTableRow(danmaku, 0) // live mode's time in table is all set to 0
         }
@@ -73,7 +74,11 @@ function parseNewDanmakus(data) {
 if (protocolType == "http") {
     let uuid = undefined
     // get sorted history danmaku and uuid
-    fetch("/" + playType + "/" + videoName).then(res => res.json()).then(data => {
+    let url = "/" + playType + "/"
+    if (playType == "live") {
+        url += "live_"
+    }
+    fetch(url + videoName).then(res => res.json()).then(data => {
         if (playType == "video") {
             engine.danmakuList = data["danmaku"] // override existed danmaku list
             for (let danmaku of data["danmaku"]) { // add to table
@@ -86,7 +91,11 @@ if (protocolType == "http") {
     // start polling.
     let poll = setInterval(function () {
         if (uuid != undefined) {
-            fetch("/poll/" + videoName + "/" + uuid).then(res => res.json()).then(data => {
+            let url = "/poll/"
+            if (playType == "live") {
+                url += "live_"
+            }
+            fetch(url + videoName + "/" + uuid).then(res => res.json()).then(data => {
                 parseNewDanmakus(data)
             }).catch(() => clearInterval(poll))
         }
@@ -94,13 +103,17 @@ if (protocolType == "http") {
 
     $(".send").on("click", function () {
         let body = {
-            "type": "video",
+            "type": playType,
             "content": danmakuInput.value
         }
         if (playType == "video") {
             body["time"] = videoPlayer[0].currentTime
         }
-        fetch("/send/" + videoName, {
+        let url = "/send/"
+        if (playType == "live") {
+            url += "live_"
+        }
+        fetch(url + videoName, {
             method: 'POST',
             cache: "no-cache",
             headers: {
@@ -110,11 +123,11 @@ if (protocolType == "http") {
         })
     })
 } else { // websocket
-    var socket = io("127.0.0.1:8765")
+    var socket = io()
     if (playType == "video") {
         socket.emit("getHistory", { "video": videoName })
     } else { // livestream
-        socket.emit("register", { "live": videoName })
+        socket.emit("register", { "live": "live_" + videoName })
     }
 
     // load history event. If in live mode, the event will never be emitted.
@@ -132,11 +145,13 @@ if (protocolType == "http") {
     $(".send").on("click", function () {
         let body = {
             "type": playType,
-            "video": videoName,
             "content": danmakuInput.value,
         }
         if (playType == "video") {
             body["time"] = videoPlayer[0].currentTime
+            body["video"] = videoName
+        } else {
+            body["video"] = "live_" + videoName
         }
         socket.emit("sendDanmaku", body)
     })

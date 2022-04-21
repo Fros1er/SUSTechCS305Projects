@@ -1,6 +1,7 @@
 import sqlite3
 import threading
 import uuid
+import time
 from typing import Dict, List, Tuple
 
 
@@ -59,7 +60,13 @@ class NahelArgama:
     #   "uuid for http client": List[]
     # }}
     # List contants danmaku's content and time for video, content only for livestream.
-    recv_queues: Dict[str, Dict[str, List]] = {}
+    recvQueues: Dict[str, Dict[str, List]] = {}
+
+    # lock for limit each video or livestream
+    recvLocks: Dict[str, threading.Lock] = {}
+
+    # dict for memorize last quried time for each client
+    uuidUpdateTimes: Dict[str, Dict[str, float]] = {}
 
     def getHistory(self, videoName: str) -> List:
         '''
@@ -80,12 +87,15 @@ class NahelArgama:
         '''
         if isVideo:
             self.registerVideo(videoName)
-        if videoName not in self.recv_queues:
-            self.recv_queues[videoName] = {}
+        if videoName not in self.recvQueues:
+            self.recvQueues[videoName] = {}
+            self.uuidUpdateTimes[videoName] = {}
+            self.recvLocks[videoName] = threading.Lock()
         key = uuid.uuid4()  # gen unduplicated uuid
-        while key in self.recv_queues[videoName]:
+        while key in self.recvQueues[videoName]:
             key = uuid.uuid4()
-        self.recv_queues[videoName][str(key)] = []
+        self.recvQueues[videoName][str(key)] = []
+        self.uuidUpdateTimes[videoName][str(key)] = time.time()
         return str(key)
 
     def sendVideoDanmaku(self, videoName: str, content: str, time_recv) -> None:
@@ -93,25 +103,35 @@ class NahelArgama:
         save one danmaku to database and all recv_queues bind to videoName.
         '''
         self.loader.save(videoName, content, time_recv)
-        if videoName not in self.recv_queues:
+        if videoName not in self.recvQueues:
             return
-        for key in self.recv_queues[videoName]:
-            self.recv_queues[videoName][key].append(
-                (content, time_recv))  # content & time
+        t = time.time()
+        with self.recvLocks[videoName]:
+            for key in self.recvQueues[videoName]:
+                # if client didn't poll for 30s
+                if self.uuidUpdateTimes[videoName][key] - t > 30:
+                    del self.uuidUpdateTimes[videoName][key]
+                    del self.recvQueues[videoName][key]  # remove it's list
+                    continue
+                self.recvQueues[videoName][key].append(
+                    (content, time_recv))  # content & time
 
     def sendLiveDanmaku(self, liveName: str, content: str) -> None:
         '''
         save one danmaku to all recv_queues bind to videoName, as live danmaku doesn't need to be store.
         '''
-        if liveName not in self.recv_queues:
+        if liveName not in self.recvQueues:
             return
-        for key in self.recv_queues:
-            self.recv_queues[liveName][key].append(content)  # content only
+        with self.recvLocks[liveName]:
+            for key in self.recvQueues[liveName]:
+                self.recvQueues[liveName][key].append(content)  # content only
 
     def getUnreceived(self, videoName: str, key: str) -> List:
         '''
         get all unreceived danmaku for videoName and uuid(key) together, return them and clear the queue.
         '''
-        res = self.recv_queues[videoName][key]
-        self.recv_queues[videoName][key] = []
+        with self.recvLocks[videoName]:
+            self.uuidUpdateTimes[videoName][key] = time.time()  # update time
+            res = self.recvQueues[videoName][key]
+            self.recvQueues[videoName][key] = []
         return res

@@ -11,6 +11,10 @@
     border-color: deeppink;
 }
 
+.screen_container video {
+    max-width: 800px;
+}
+
 .table_div {
     display: inline;
     float: right;
