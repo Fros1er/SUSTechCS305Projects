@@ -1,5 +1,8 @@
 # Computer Networks Assignment 2
 
+Libraries needed(via pip):  
+`pip3 install flask flask-socketio eventlet gevent-websocket`
+
 # About code
 
 In code, there's a lot of json fields named "video". Actually, it means "video or livestream names". I did this for some convience, but it sometimes is confusing. 
