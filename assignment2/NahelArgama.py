@@ -47,6 +47,13 @@ class DamakuSQLLoader:
                 cursor = self.conn.cursor()
                 cursor.execute(self.insertSQL %
                                videoName, [content, time_recv])
+    
+    def drop(self, videoName: str) -> None:
+        '''
+        drop table
+        '''
+        with self.mutex:
+            self.conn.execute("DROP TABLE IF EXISTS %s;" % videoName)
 
 
 class NahelArgama:

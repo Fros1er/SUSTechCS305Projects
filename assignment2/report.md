@@ -48,3 +48,11 @@ When the video's time is modified by user, it will find the position of cursor b
 
 The live mode is simulated by autoplayed video without controls. As chrome limits that autoplayed video need to be muted, the video in live mode has no sound.
 
+The server is running well with multiple videos and livestreams accessed together.
+
+Running steps:
+1. Access http://localhost:8765/
+2. The page will be redirected to http://localhost:8765/ws/video/rickroll
+3. Several links is provided in the page. The first two links are for switching between videos, the remaining four are for switching between modes.
+4. Url format: http://127.0.0.1:8765/protocol(ws or http)/mode(video or live)/videoname(rickroll or kongming provided by default)
+5. If you want to add more video, put them directly in static folder, and access it by it's filename(without suffix). Only mp4 video is supported.

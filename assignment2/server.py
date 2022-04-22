@@ -1,5 +1,4 @@
 import flask
-import logging
 from flask import Flask, redirect, render_template
 from flask_socketio import SocketIO, join_room, emit
 from NahelArgama import NahelArgama
@@ -8,12 +7,6 @@ from NahelArgama import NahelArgama
 app = Flask("Danmaku")
 app.config['SECRET_KEY'] = 'secret!'
 soc = SocketIO(app, cors_allowed_origins='*')
-
-# disable logs, as every poll create one line of log
-# log = logging.getLogger('werkzeug')
-# log.setLevel(logging.ERROR)
-# app.logger.disabled = True
-# log.disabled = True
 
 # init danmaku manager
 danmakuHandler = NahelArgama()
@@ -33,7 +26,7 @@ def httpPlayer(type, video):
     http version of video or live resources.
     streaming is simulated by video autoplayed and without controls.
     '''
-    return render_template("danmu.html", videoName=video + ".mp4", mode="http", playType=type)
+    return render_template("danmu.html", videoName=video, mode="http", playType=type)
 
 
 @app.route("/ws/<type>/<video>")
@@ -42,7 +35,7 @@ def wsPlayer(type, video):
     websocket version of video or live resources.
     streaming is simulated by video autoplayed and without controls.
     '''
-    return render_template("danmu.html", videoName=video + ".mp4", mode="ws", playType=type)
+    return render_template("danmu.html", videoName=video, mode="ws", playType=type)
 
 
 @app.route("/video/<video>")
@@ -133,6 +126,15 @@ def wsSendDanmaku(data):
         danmakuHandler.sendLiveDanmaku(data["video"], data["content"])
         soc.emit("newDanmaku", {"newDanmaku": [data["content"]]}, to=data["video"])
 
+
+@app.route("/drop/<video>")
+def clearDanmaku(video):
+    '''
+    clear all danmaku for video for test.
+    No links provided in page, need to access manually.
+    '''
+    danmakuHandler.loader.drop(video)
+    return "success"
 
 if __name__ == "__main__":
     soc.run(app, "0.0.0.0", 8765)

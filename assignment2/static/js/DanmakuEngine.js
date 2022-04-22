@@ -47,6 +47,17 @@ export class DanmakuEngine {
     }
 
     /**
+     * insert danmaku to list in order.  
+     * if danmaku is earlier than cursor, cursor++.
+     */
+    insertDanmaku(danmaku, position) {
+        this.danmakuList.splice(position, 0, danmaku)
+        if (danmaku[1] < this.videoDom.currentTime) {
+            this.cursor++
+        }
+    }
+
+    /**
      * remove all danmaku dom elements and timers.
      */
     clear() {

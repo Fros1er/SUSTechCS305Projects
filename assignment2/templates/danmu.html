@@ -14,8 +14,8 @@
 <body>
 
   <div class="screen_container" id="contents">
-    <video {% if type=="video" %} controls {% else %} autoplay muted {% endif %}>
-      <source src={{ url_for('static', filename=videoName ) }} type="video/mp4">
+    <video {% if playType=="video" %} controls {% else %} autoplay muted {% endif %}>
+      <source src={{ url_for('static', filename=videoName + ".mp4" ) }} type="video/mp4">
       Your browser does not support the video tag.
     </video>
   </div>
@@ -26,10 +26,6 @@
         <th>time</th>
       </thead>
       <tbody>
-        <tr>
-          <td>a</td>
-          <td>b</td>
-        </tr>
       </tbody>
     </table>
   </div>
@@ -37,7 +33,13 @@
   <div class="main">
     <input id="danmakutext" type="text" placeholder="Danmaku~"></input>
     <button class="send">Send</button>
-    <p>Now: {{ mode }} mode</p>
+    <p>Now: {{ mode }} {{playType}} mode</p>
+    <a href={{ "/ws/live/rickroll" }}>《如何在南科大取得成功》</a>
+    <a href={{ "/ws/video/kongming" }}>父亲，快看，诸葛亮！</a>
+    <a href={{ "/http/video/" + videoName }}>http video</a>
+    <a href={{ "/ws/video/" + videoName }}>ws video</a>
+    <a href={{ "/http/live/" + videoName }}>http live</a>
+    <a href={{ "/ws/live/" + videoName }}>ws live</a>
   </div>
 
   <script src={{ url_for('static', filename="js/main.js" ) }} type="module"></script>

@@ -13,11 +13,6 @@ const protocolType = paths.pop()
 
 const engine = new DanmakuEngine(videoPlayer[0], danmakuContainer)
 
-// live mode: remove controls from videoPlayer, and play it directly.
-if (playType == "live") {
-    videoPlayer.removeAttr('controls')
-}
-
 videoPlayer.on("seeked", () => {
     if (playType == "video") {
         engine.redirect(videoPlayer[0].currentTime)
@@ -43,8 +38,12 @@ function addDanmakuTableRow(content, time) {
     tableBody.append("<tr><td>" + content + "</td><td>" + time + "</td></tr>")
 }
 
-function addDanmakuTableRowAfter(content, time, index) {
-    $("tr", tableBody).eq(index).after("<tr><td>" + content + "</td><td>" + time + "</td></tr>")
+function addDanmakuTableRowBefore(content, time, index) {
+    if (index == $("tr", tableBody).length) {
+        addDanmakuTableRow(content, time)
+    } else {
+        $("tr", tableBody).eq(index).before("<tr><td>" + content + "</td><td>" + time + "</td></tr>")
+    }
 }
 
 function parseNewDanmakus(data) {
@@ -58,8 +57,8 @@ function parseNewDanmakus(data) {
         for (let danmaku of data["newDanmaku"]) {
             // insert new danmaku to list in order
             let res = upperBound(engine.danmakuList, danmaku[1])
-            engine.danmakuList.splice(res, 0, danmaku)
-            addDanmakuTableRowAfter(danmaku[0], danmaku[1], res)
+            engine.insertDanmaku(danmaku, res)
+            addDanmakuTableRowBefore(danmaku[0], danmaku[1], res)
         }
     } else { // livestream mode
         for (let s of data["newDanmaku"]) {
